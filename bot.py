@@ -16,6 +16,127 @@ bot = telebot.TeleBot(BOT_TOKEN)
 db_lock = threading.Lock()
 
 
+APPEAL_TEMPLATES = {
+    "t1": {"title": "📝 قالب 1 — استئناف عام", "text": """السلام عليكم فريق دعم واتساب،
+
+أراسلكم بخصوص حظر حسابي على واتساب. رقمي هو: [اكتب رقمك هنا]
+
+أنا أستخدم واتساب بشكل شخصي وعائلي فقط، ولم أقصد مخالفة أي من سياساتكم.
+
+أرجو منكم إعادة النظر في قرار الحظر وإعادة تفعيل حسابي.
+
+شكراً لكم على وقتكم وجهدكم.
+
+مع التحية."""},
+    "t2": {"title": "📝 قالب 2 — استئناف شخصي", "text": """إلى فريق دعم واتساب الموقر،
+
+تحية طيبة وبعد،
+
+أكتب إليكم بخصوص حظر حسابي على منصة واتساب. رقمي: [اكتب رقمك هنا]
+
+أنا شخص عادي أستخدم التطبيق للتواصل مع عائلتي وأصدقائي. لم أرتكب أي مخالفة متعمدة، وإذا حدث خطأ سهواً فأنا أعتذر عنه.
+
+أطلب منكم مراجعة حسابي وإعادته.
+
+شكراً لتعاونكم."""},
+    "t3": {"title": "📝 قالب 3 — حساب عمل", "text": """السادة فريق دعم واتساب،
+
+أنا صاحب عمل صغير وأستخدم واتساب للتواصل مع عملائي. رقمي: [اكتب رقمك هنا]
+
+حظر الحساب يؤثر بشكل كبير على عملي ومصدر رزقي الوحيد.
+
+أرجو منكم مراجعة قرار الحظر وإعادة تفعيل حسابي. أتعهد بالالتزام بجميع سياسات واتساب.
+
+مع الشكر الجزيل."""},
+    "t4": {"title": "📝 قالب 4 — حظر خاطئ", "text": """فريق دعم واتساب،
+
+تحية طيبة،
+
+تم حظر حسابي على واتساب رقم: [اكتب رقمك هنا]
+
+أعتقد أن هذا الحظر حدث بالخطأ، أو أن شخصاً ما أبلغ عني بشكل كاذب لأسباب شخصية.
+
+أرجو منكم التحقق من حسابي بعناية، فأنا مستخدم منتظم منذ سنوات ولم أرتكب أي مخالفة.
+
+شكراً لكم."""},
+    "t5": {"title": "📝 قالب 5 — استئناف رسمي", "text": """إلى قسم مراجعة الحسابات في واتساب،
+
+بخصوص: طلب استئناف حظر حساب
+
+رقم الهاتف: [اكتب رقمك هنا]
+تاريخ الحظر التقريبي: [اكتب التاريخ]
+
+السبب حسب علمي: غير معروف
+
+التماس الاستئناف:
+أرجو إعادة النظر في قرار حظر حسابي. أستخدم واتساب لأغراض شخصية مشروعة، وأتعهد بالالتزام بكافة سياسات وشروط خدمة واتساب.
+
+شكراً لتفهمكم وتعاونكم."""},
+    "t6": {"title": "📝 قالب 6 — مستخدم جديد", "text": """فريق واتساب المحترم،
+
+رقمي: [اكتب رقمك هنا]
+
+حسابي تم حظره بعد فترة قصيرة من إنشائه، وأنا لم أقم بأي نشاط مخالف.
+
+ربما حدث هذا بسبب نشاط تلقائي من جهاز جديد أو رقم جديد.
+
+أرجو منكم إعادة تفعيل حسابي لأتمكن من التواصل مع أهلي.
+
+شكراً لكم."""},
+    "t7": {"title": "📝 قالب 7 — استئناف إنجليزي", "text": """Dear WhatsApp Support Team,
+
+I am writing to appeal the ban on my WhatsApp account.
+
+Phone Number: [Type your number here]
+Date of Ban: [Approximate date]
+
+I have been using WhatsApp for personal communication with family and friends. I have not intentionally violated any of your policies.
+
+I kindly request you to review my account and restore it. I promise to comply with all WhatsApp terms of service.
+
+Thank you for your time and consideration.
+
+Sincerely."""},
+    "t8": {"title": "📝 قالب 8 — تاجر/متجر", "text": """فريق دعم واتساب،
+
+أنا صاحب متجر إلكتروني وأستخدم واتساب للتواصل مع العملاء وتلقي الطلبات. رقمي: [اكتب رقمك هنا]
+
+حظر حسابي تسبب في خسارة كبيرة للعملاء والإيرادات.
+
+أرجو منكم إعادة تفعيل حسابي بشكل عاجل. أنا ملتزم بسياساتكم ولن أستخدم الحساب في أي نشاط مخالف.
+
+شكراً لتفهمكم."""},
+    "t9": {"title": "📝 قالب 9 — طالب", "text": """إلى فريق دعم واتساب،
+
+أنا طالب جامعي وأستخدم واتساب بشكل أساسي للتواصل مع زملائي في الجامعة والمشاريع الدراسية. رقمي: [اكتب رقمك هنا]
+
+حظر حسابي أثر بشكل كبير على دراستي.
+
+أرجو منكم مراجعة حسابي وإعادته. لم أرتكب أي مخالفة متعمدة.
+
+شكراً لكم على جهودكم."""},
+    "t10": {"title": "📝 قالب 10 — استئناف مفصل", "text": """فريق دعم واتساب المحترم،
+
+تحية طيبة وبعد،
+
+أتقدم إليكم بهذا الاستئناف بخصوص حظر حسابي على تطبيق واتساب.
+
+📱 معلومات الحساب:
+• رقم الهاتف: [اكتب رقمك هنا]
+• تاريخ الحظر التقريبي: [اكتب التاريخ]
+
+📋 تفاصيل:
+أنا مستخدم واتساب منذ [اكتب عدد السنوات]. أستخدم الحساب بشكل شخصي فقط للتواصل مع الأهل والأصدقاء. لم أقم بأي نشاط مخالف لسياسات واتساب.
+
+🙏 الطلب:
+أرجو منكم إعادة النظر في قرار الحظر، وإعادة تفعيل حسابي. أتعهد بالالتزام الكامل بجميع شروط الخدمة والسياسات.
+
+شكراً لتعاونكم، وبارك الله فيكم.
+
+مع خالص التحية والاحترام."""}
+}
+
+
 def get_db():
     conn = sqlite3.connect('bot.db', check_same_thread=False, timeout=10)
     conn.execute("PRAGMA journal_mode=WAL")
@@ -25,25 +146,9 @@ def get_db():
 def init_db():
     conn = get_db()
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-        user_id INTEGER PRIMARY KEY,
-        username TEXT,
-        first_name TEXT,
-        points INTEGER DEFAULT 0,
-        referred_by INTEGER,
-        joined_at INTEGER
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS force_channels (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        type TEXT,
-        identifier TEXT,
-        name TEXT,
-        url TEXT
-    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, username TEXT, first_name TEXT, points INTEGER DEFAULT 0, referred_by INTEGER, joined_at INTEGER)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS force_channels (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT, identifier TEXT, name TEXT, url TEXT)''')
     conn.commit()
     conn.close()
 
@@ -146,8 +251,7 @@ def add_force_channel(ftype, identifier, name, url):
     with db_lock:
         conn = get_db()
         c = conn.cursor()
-        c.execute("INSERT INTO force_channels (type, identifier, name, url) VALUES (?, ?, ?, ?)",
-                  (ftype, identifier, name, url))
+        c.execute("INSERT INTO force_channels (type, identifier, name, url) VALUES (?, ?, ?, ?)", (ftype, identifier, name, url))
         conn.commit()
         conn.close()
 
@@ -165,29 +269,24 @@ def is_bot_on():
     return get_setting('bot_on', '1') == '1'
 
 
-# ==================== SUBSCRIPTION CHECK ====================
 def check_subscription(user_id):
-    """يتحقق فقط من القنوات والجروبات - اللينكات والبوتات مش بتحجب"""
     channels = get_force_channels()
     if not channels:
         return True, []
     not_subscribed = []
     for cid, ftype, identifier, name, url in channels:
-        # اللينكات والبوتات مش بتحجب
         if ftype in ('link', 'bot'):
             continue
-        # القنوات والجروبات - نتحقق
         try:
             member = bot.get_chat_member(identifier, user_id)
             if member.status in ['left', 'kicked']:
                 not_subscribed.append({'id': cid, 'type': ftype, 'name': name, 'url': url})
         except Exception as e:
-            print(f"Sub check failed for {identifier}: {e}")
+            print(f"Sub check failed: {e}")
             continue
     return len(not_subscribed) == 0, not_subscribed
 
 
-# ==================== MENUS ====================
 def main_menu(user_id):
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
@@ -197,6 +296,10 @@ def main_menu(user_id):
     markup.add(
         types.InlineKeyboardButton("📡 ماسح الواي فاي", callback_data="wifi_scan"),
         types.InlineKeyboardButton("🆔 محلل الرقم القومي", callback_data="nid_analyze"),
+    )
+    markup.add(
+        types.InlineKeyboardButton("🚫 مساعد فك الحظر", callback_data="unban_help"),
+        types.InlineKeyboardButton("📝 قوالب استئناف", callback_data="appeal_templates"),
     )
     markup.add(
         types.InlineKeyboardButton("🔗 رابط دعوتي", callback_data="my_link"),
@@ -245,7 +348,7 @@ def force_admin_menu():
     if channels:
         for cid, ftype, identifier, name, url in channels:
             type_emoji = {"channel": "📢", "group": "👥", "bot": "🤖", "link": "🔗"}.get(ftype, "📌")
-            markup.add(types.InlineKeyboardButton(f"{type_emoji} {name}  |  🗑 حذف", callback_data=f"force_del_{cid}"))
+            markup.add(types.InlineKeyboardButton(f"{type_emoji} {name} | 🗑 حذف", callback_data=f"force_del_{cid}"))
     markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data="admin_panel"))
     return markup
 
@@ -292,7 +395,6 @@ def start_cmd(message):
     user_id = message.from_user.id
     username = message.from_user.username
     first_name = message.from_user.first_name
-
     referred_by = None
     args = message.text.split()
     if len(args) > 1 and args[1].startswith('ref'):
@@ -302,30 +404,21 @@ def start_cmd(message):
                 referred_by = ref_id
         except:
             pass
-
     is_new = add_user(user_id, username, first_name, referred_by)
-
     if is_new and referred_by and get_user(referred_by):
         add_points(referred_by, 10)
         try:
             bot.send_message(referred_by, "🎉 <b>مبروك!</b>\n👤 واحد جديد دخل من رابطك\n💰 +10 نقاط", parse_mode='HTML')
         except:
             pass
-
     ok, not_subscribed = check_subscription(user_id)
     if not ok:
-        text = (
-            "⚠️ <b>لازم تشترك في القنوات/الجروبات دي الأول:</b>\n"
-            "━━━━━━━━━━━━━━━━━━\n\n"
-            "اضغط على كل واحدة، اشترك فيها، وبعدين اضغط ✅ <b>تحقّق من الاشتراك</b>"
-        )
+        text = "⚠️ <b>لازم تشترك في القنوات/الجروبات دي الأول:</b>\n\nاضغط على كل واحدة، اشترك، وبعدين اضغط ✅ <b>تحقّق</b>"
         bot.send_message(user_id, text, parse_mode='HTML', reply_markup=subscribe_menu(not_subscribed))
         return
-
     if not is_bot_on() and user_id != OWNER_ID:
         bot.send_message(user_id, "🔴 <b>البوت متوقف مؤقتاً</b>", parse_mode='HTML')
         return
-
     send_welcome(user_id, first_name)
 
 
@@ -345,21 +438,17 @@ def callback_handler(call):
         bot.answer_callback_query(call.id)
         ok, not_subscribed = check_subscription(user_id)
         if ok:
-            bot.send_message(chat_id, "✅ <b>تم التحقق! أهلاً بيك.</b>", parse_mode='HTML')
+            bot.send_message(chat_id, "✅ <b>تم التحقق!</b>", parse_mode='HTML')
             send_welcome(chat_id)
         else:
-            bot.send_message(chat_id, "❌ <b>لسه مشتركتش في كل القنوات!</b>",
-                             parse_mode='HTML', reply_markup=subscribe_menu(not_subscribed))
+            bot.send_message(chat_id, "❌ <b>لسه مشتركتش!</b>", parse_mode='HTML', reply_markup=subscribe_menu(not_subscribed))
         return
 
     if data == "my_link":
         bot.answer_callback_query(call.id)
         bot_info = bot.get_me()
         link = f"https://t.me/{bot_info.username}?start=ref{user_id}"
-        text = ("🔗 <b>رابط الدعوة الخاص بك</b>\n"
-                "━━━━━━━━━━━━━━━━━━\n"
-                f"<code>{link}</code>\n\n"
-                "💰 كل واحد يدخل من الرابط ده = <b>+10 نقاط</b>")
+        text = f"🔗 <b>رابط الدعوة</b>\n━━━━━━━━━━━━━━━━━━\n<code>{link}</code>\n\n💰 كل واحد = <b>+10 نقاط</b>"
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("📤 مشاركة", url=f"https://t.me/share/url?url={link}"))
         markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
@@ -375,19 +464,13 @@ def callback_handler(call):
             c.execute("SELECT COUNT(*) FROM users WHERE referred_by=?", (user_id,))
             ref_count = c.fetchone()[0]
             conn.close()
-        text = ("💰 <b>نقاطك</b>\n"
-                "━━━━━━━━━━━━━━━━━━\n"
-                f"⭐ الرصيد: <b>{points}</b>\n"
-                f"👥 اللي دخلوا منك: <b>{ref_count}</b>")
+        text = f"💰 <b>نقاطك</b>\n━━━━━━━━━━━━━━━━━━\n⭐ الرصيد: <b>{points}</b>\n👥 اللي دخلوا منك: <b>{ref_count}</b>"
         bot.send_message(chat_id, text, parse_mode='HTML', reply_markup=back_menu())
         return
 
     if data == "info":
         bot.answer_callback_query(call.id)
-        text = (f"ℹ️ <b>معلومات النظام</b>\n"
-                "━━━━━━━━━━━━━━━━━━\n"
-                f"🔥 <b>{BOT_NAME}</b>\n"
-                f"👨‍💻 المطور: {DEV_USERNAME}")
+        text = f"ℹ️ <b>معلومات</b>\n━━━━━━━━━━━━━━━━━━\n🔥 <b>{BOT_NAME}</b>\n👨‍💻 {DEV_USERNAME}"
         bot.send_message(chat_id, text, parse_mode='HTML', reply_markup=back_menu())
         return
 
@@ -406,25 +489,93 @@ def callback_handler(call):
     if data == "nid_analyze":
         bot.answer_callback_query(call.id)
         msg = bot.send_message(chat_id,
-            "🆔 <b>محلل الرقم القومي المصري</b>\n"
-            "━━━━━━━━━━━━━━━━━━\n"
-            "ابعت الرقم القومي (14 رقم)\n\n"
-            "مثال: <code>29501021234567</code>",
+            "🆔 <b>محلل الرقم القومي</b>\n━━━━━━━━━━━━━━━━━━\nابعت الرقم القومي (14 رقم)\nمثال: <code>29501021234567</code>",
             parse_mode='HTML', reply_markup=back_menu())
         bot.register_next_step_handler(msg, process_nid)
         return
 
+    if data == "unban_help":
+        bot.answer_callback_query(call.id)
+        text = (
+            "🚫 <b>مساعد فك حظر واتساب</b>\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            "📌 <b>الخطوات الرسمية لفك الحظر:</b>\n\n"
+            "1️⃣ افتح تطبيق واتساب\n"
+            "2️⃣ روح للإعدادات ⚙️\n"
+            "3️⃣ اضغط Help / المساعدة\n"
+            "4️⃣ اضغط Contact Us / اتصل بنا\n"
+            "5️⃣ اكتب رسالة استئناف باحترام\n"
+            "6️⃣ استنى الرد (24-48 ساعة)\n\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "🔗 <b>الموقع الرسمي:</b>\n"
+            "https://faq.whatsapp.com\n\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "⚠️ <b>تحذير مهم:</b>\n\n"
+            "❌ مفيش أي حد يقدر يفك حظر رقمك غير فريق واتساب الرسمي\n\n"
+            "❌ أي حد يقولك \"ابعتلي إيميلك وباسوردك وهفكلك الحظر\" = <b>نصب</b>\n\n"
+            "❌ متبعتش بياناتك لأي حد مهما كان\n\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "💡 <b>نصائح لتجنب الحظر:</b>\n\n"
+            "• متبعتش رسائل جماعية كثيرة\n"
+            "• متضيفش ناس في جروبات بدون إذن\n"
+            "• متستخدمش نسخ معدلة\n"
+            "• متبعتش لينكات مشبوهة\n"
+            "• استخدم WhatsApp Business للأنشطة التجارية"
+        )
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("🌐 موقع واتساب الرسمي", url="https://faq.whatsapp.com"))
+        markup.add(types.InlineKeyboardButton("📝 قوالب الاستئناف الجاهزة", callback_data="appeal_templates"))
+        markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
+        bot.send_message(chat_id, text, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=True)
+        return
+
+    if data == "appeal_templates":
+        bot.answer_callback_query(call.id)
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        for key, tpl in APPEAL_TEMPLATES.items():
+            markup.add(types.InlineKeyboardButton(tpl["title"], callback_data=f"show_{key}"))
+        markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
+        text = (
+            "📝 <b>قوالب استئناف واتساب الجاهزة</b>\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            "اختار القالب اللي يناسب حالتك:\n\n"
+            "👇"
+        )
+        bot.send_message(chat_id, text, parse_mode='HTML', reply_markup=markup)
+        return
+
+    if data.startswith("show_") and data.replace("show_", "") in APPEAL_TEMPLATES:
+        bot.answer_callback_query(call.id)
+        key = data.replace("show_", "")
+        tpl = APPEAL_TEMPLATES[key]
+        text = (
+            f"<b>{tpl['title']}</b>\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            f"<blockquote>{tpl['text']}</blockquote>\n\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            "📌 <b>خطوات الإرسال:</b>\n\n"
+            "1️⃣ اضغط على الرسالة فوق مطوّل عشان تنسخها\n"
+            "2️⃣ غير <code>[اكتب رقمك هنا]</code> برقمك\n"
+            "3️⃣ اضغط الرابط اللي تحت\n"
+            "4️⃣ الصق الرسالة في النموذج\n"
+            "5️⃣ اكتب بريدك واضغط Send"
+        )
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(types.InlineKeyboardButton("🌐 نموذج دعم واتساب الرسمي", url="https://www.whatsapp.com/contact/"))
+        markup.add(types.InlineKeyboardButton("📋 قوالب تانية", callback_data="appeal_templates"))
+        markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
+        bot.send_message(chat_id, text, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=True)
+        return
+
     if data == "activate":
         bot.answer_callback_query(call.id)
-        msg = bot.send_message(chat_id, "📱 <b>أدخل رقم الواتساب</b>",
-                               parse_mode='HTML', reply_markup=back_menu())
+        msg = bot.send_message(chat_id, "📱 <b>أدخل رقم الواتساب</b>", parse_mode='HTML', reply_markup=back_menu())
         bot.register_next_step_handler(msg, process_number)
         return
 
     if data == "bridge":
         bot.answer_callback_query(call.id)
-        msg = bot.send_message(chat_id, "🛡 <b>أدخل الباند المرفوض</b>",
-                               parse_mode='HTML', reply_markup=back_menu())
+        msg = bot.send_message(chat_id, "🛡 <b>أدخل الباند المرفوض</b>", parse_mode='HTML', reply_markup=back_menu())
         bot.register_next_step_handler(msg, process_band)
         return
 
@@ -447,10 +598,7 @@ def callback_handler(call):
             c.execute("SELECT COUNT(*) FROM users WHERE joined_at > ?", (day_ago,))
             today = c.fetchone()[0]
             conn.close()
-        text = ("📊 <b>إحصائيات</b>\n"
-                "━━━━━━━━━━━━━━━━━━\n"
-                f"👥 الإجمالي: <b>{total}</b>\n"
-                f"🆕 اليوم: <b>{today}</b>")
+        text = f"📊 <b>إحصائيات</b>\n━━━━━━━━━━━━━━━━━━\n👥 الإجمالي: <b>{total}</b>\n🆕 اليوم: <b>{today}</b>"
         bot.send_message(chat_id, text, parse_mode='HTML', reply_markup=admin_menu())
         return
 
@@ -459,7 +607,7 @@ def callback_handler(call):
         current = is_bot_on()
         set_setting('bot_on', '0' if current else '1')
         status = "متوقف 🔴" if current else "شغال 🟢"
-        bot.send_message(chat_id, f"✅ الحالة: <b>{status}</b>", parse_mode='HTML', reply_markup=admin_menu())
+        bot.send_message(chat_id, f"✅ <b>{status}</b>", parse_mode='HTML', reply_markup=admin_menu())
         return
 
     if data == "admin_broadcast":
@@ -483,26 +631,22 @@ def callback_handler(call):
     if data == "admin_users":
         bot.answer_callback_query(call.id)
         total = get_users_count()
-        bot.send_message(chat_id, f"👥 <b>عدد المستخدمين: {total}</b>",
-                         parse_mode='HTML', reply_markup=admin_menu())
+        bot.send_message(chat_id, f"👥 <b>{total} مستخدم</b>", parse_mode='HTML', reply_markup=admin_menu())
         return
 
     if data == "admin_force":
         bot.answer_callback_query(call.id)
         bot.send_message(chat_id,
-            "📢 <b>إدارة الاشتراك الإجباري</b>\n"
-            "━━━━━━━━━━━━━━━━━━\n"
-            "اضغط على أي اشتراك لحذفه، أو أضف واحد جديد.",
+            "📢 <b>الاشتراك الإجباري</b>\n\nاضغط على أي اشتراك لحذفه، أو أضف جديد.",
             parse_mode='HTML', reply_markup=force_admin_menu())
         return
 
     if data == "force_add":
         bot.answer_callback_query(call.id)
         bot.send_message(chat_id,
-            "📌 <b>اختار نوع الاشتراك:</b>\n"
-            "━━━━━━━━━━━━━━━━━━\n"
-            "📢 <b>قناة</b> / 👥 <b>جروب</b>: لازم البوت أدمن\n"
-            "🤖 <b>بوت</b> / 🔗 <b>لينك</b>: مش بيحجب البوت، زر بس",
+            "📌 <b>اختار النوع:</b>\n\n"
+            "📢 قناة / 👥 جروب: لازم البوت أدمن\n"
+            "🤖 بوت / 🔗 لينك: مش بيحجب البوت",
             parse_mode='HTML', reply_markup=force_type_menu())
         return
 
@@ -516,34 +660,22 @@ def callback_handler(call):
     if data in ("force_type_channel", "force_type_group", "force_type_bot", "force_type_link"):
         bot.answer_callback_query(call.id)
         ftype = data.replace("force_type_", "")
-
         if ftype == "channel":
-            text = ("📢 <b>إضافة قناة للاشتراك الإجباري</b>\n"
-                    "━━━━━━━━━━━━━━━━━━\n"
-                    "<b>طريقتين:</b>\n\n"
-                    "1️⃣ للقنوات العامة: ابعت <code>@username</code>\n\n"
-                    "2️⃣ للقنوات الخاصة: <b>اعمل Forward لأي رسالة من القناة</b>\n\n"
-                    "⚠️ البوت لازم يكون <b>أدمن</b> في القناة.")
+            text = ("📢 <b>إضافة قناة</b>\n\n"
+                    "1️⃣ للقنوات العامة: ابعت <code>@username</code>\n"
+                    "2️⃣ لأي قناة: <b>اعمل Forward لأي رسالة</b>\n\n"
+                    "⚠️ البوت لازم يكون أدمن")
         elif ftype == "group":
-            text = ("👥 <b>إضافة جروب للاشتراك الإجباري</b>\n"
-                    "━━━━━━━━━━━━━━━━━━\n"
-                    "<b>طريقتين:</b>\n\n"
-                    "1️⃣ للجروبات العامة: ابعت <code>@username</code>\n\n"
-                    "2️⃣ لأي جروب: <b>اعمل Forward لأي رسالة من الجروب</b>\n\n"
-                    "⚠️ البوت لازم يكون <b>أدمن</b> في الجروب.")
+            text = ("👥 <b>إضافة جروب</b>\n\n"
+                    "1️⃣ للجروبات العامة: ابعت <code>@username</code>\n"
+                    "2️⃣ لأي جروب: <b>اعمل Forward لأي رسالة</b>\n\n"
+                    "⚠️ البوت لازم يكون أدمن")
         elif ftype == "bot":
-            text = ("🤖 <b>إضافة بوت للاشتراك الإجباري</b>\n"
-                    "━━━━━━━━━━━━━━━━━━\n"
-                    "ابعت رابط البوت:\n"
-                    "<code>https://t.me/bot_username</code>\n\n"
-                    "ℹ️ ده مش هيحجب البوت، هيظهر كزر بس.")
+            text = ("🤖 <b>إضافة بوت</b>\n\nابعت رابط البوت:\n<code>https://t.me/bot_username</code>\n\n"
+                    "ℹ️ مش هيحجب البوت")
         else:
-            text = ("🔗 <b>إضافة لينك للاشتراك الإجباري</b>\n"
-                    "━━━━━━━━━━━━━━━━━━\n"
-                    "ابعت اللينك:\n"
-                    "<code>https://example.com</code>\n\n"
-                    "ℹ️ ده مش هيحجب البوت، هيظهر كزر بس.")
-
+            text = ("🔗 <b>إضافة لينك</b>\n\nابعت اللينك:\n<code>https://example.com</code>\n\n"
+                    "ℹ️ مش هيحجب البوت")
         msg = bot.send_message(chat_id, text, parse_mode='HTML',
                                reply_markup=types.InlineKeyboardMarkup().add(
                                    types.InlineKeyboardButton("❌ إلغاء", callback_data="admin_force")))
@@ -551,18 +683,13 @@ def callback_handler(call):
         return
 
 
-# ==================== PROCESS FORCE ADD ====================
 def process_add_force(message, ftype):
     if message.from_user.id != OWNER_ID:
         return
-
-    # ============ قنوات وجروبات ============
     if ftype in ('channel', 'group'):
         chat_id_to_use = None
         chat_name = None
         chat_url = None
-
-        # رسالة معاد توجيهها (Forward)
         if message.forward_from_chat:
             chat = message.forward_from_chat
             chat_id_to_use = chat.id
@@ -575,18 +702,12 @@ def process_add_force(message, ftype):
                     chat_url = invite.invite_link
                 except:
                     chat_url = f"https://t.me/c/{str(chat.id).replace('-100', '')}"
-
-        # نص فيه @username
         elif message.text:
             text = message.text.strip()
             if text.startswith('/'):
                 return
             if not (text.startswith('@') or text.startswith('-100')):
-                bot.send_message(message.chat.id,
-                    "❌ <b>صيغة غلط</b>\n\n"
-                    "للقنوات/الجروبات <b>العامة</b>: ابعت <code>@username</code>\n\n"
-                    "للقنوات/الجروبات <b>الخاصة</b>: اعمل <b>Forward</b> لأي رسالة منهم.",
-                    parse_mode='HTML', reply_markup=force_admin_menu())
+                bot.send_message(message.chat.id, "❌ صيغة غلط", reply_markup=force_admin_menu())
                 return
             try:
                 chat = bot.get_chat(text)
@@ -601,39 +722,24 @@ def process_add_force(message, ftype):
                     except:
                         chat_url = f"https://t.me/c/{str(chat.id).replace('-100', '')}"
             except Exception as e:
-                bot.send_message(message.chat.id,
-                    f"❌ مش قادر ألاقي: <code>{text}</code>\n<code>{e}</code>",
-                    parse_mode='HTML', reply_markup=force_admin_menu())
+                bot.send_message(message.chat.id, f"❌ {e}", reply_markup=force_admin_menu())
                 return
         else:
             return
-
-        # التحقق من صلاحيات البوت
         try:
             bot_member = bot.get_chat_member(chat_id_to_use, bot.get_me().id)
             if bot_member.status not in ['administrator', 'creator']:
-                bot.send_message(message.chat.id,
-                    "⚠️ <b>البوت مش أدمن!</b>\nلازم تعمله أدمن الأول.",
-                    parse_mode='HTML', reply_markup=force_admin_menu())
+                bot.send_message(message.chat.id, "⚠️ البوت مش أدمن!", reply_markup=force_admin_menu())
                 return
-        except Exception as e:
-            bot.send_message(message.chat.id,
-                f"⚠️ مش قادر أتحقق من الصلاحيات: <code>{e}</code>",
-                parse_mode='HTML', reply_markup=force_admin_menu())
-            return
-
+        except:
+            pass
         identifier = str(chat_id_to_use)
         add_force_channel(ftype, identifier, chat_name, chat_url)
         type_name = "القناة" if ftype == "channel" else "الجروب"
         bot.send_message(message.chat.id,
-            f"✅ <b>تم إضافة {type_name}</b>\n\n"
-            f"📛 الاسم: <b>{chat_name}</b>\n"
-            f"🆔 الآيدي: <code>{chat_id_to_use}</code>\n"
-            f"🔗 {chat_url}",
+            f"✅ <b>تم إضافة {type_name}</b>\n\n📛 {chat_name}\n🆔 <code>{chat_id_to_use}</code>\n🔗 {chat_url}",
             parse_mode='HTML', reply_markup=force_admin_menu())
         return
-
-    # ============ بوت ============
     elif ftype == 'bot':
         if not message.text:
             return
@@ -643,12 +749,9 @@ def process_add_force(message, ftype):
         if not url.startswith('http'):
             url = f"https://t.me/{url.replace('@', '')}"
         identifier = url.replace("https://t.me/", "").replace("@", "")
-        name = f"@{identifier}"
-        add_force_channel('bot', identifier, name, url)
+        add_force_channel('bot', identifier, f"@{identifier}", url)
         bot.send_message(message.chat.id, f"✅ <b>تم إضافة البوت</b>\n\n🔗 {url}",
                          parse_mode='HTML', reply_markup=force_admin_menu())
-
-    # ============ لينك ============
     else:
         if not message.text:
             return
@@ -656,8 +759,7 @@ def process_add_force(message, ftype):
         if url.startswith('/'):
             return
         if not url.startswith('http'):
-            bot.send_message(message.chat.id, "❌ اللينك لازم يبدأ بـ <code>http</code>",
-                             parse_mode='HTML', reply_markup=force_admin_menu())
+            bot.send_message(message.chat.id, "❌ اللينك لازم يبدأ بـ http", reply_markup=force_admin_menu())
             return
         name = url[:30] + ("..." if len(url) > 30 else "")
         add_force_channel('link', url, name, url)
@@ -665,7 +767,6 @@ def process_add_force(message, ftype):
                          parse_mode='HTML', reply_markup=force_admin_menu())
 
 
-# ==================== PROCESS MESSAGES ====================
 def process_number(message):
     if message.text and message.text.startswith('/'):
         return
@@ -676,8 +777,7 @@ def process_number(message):
     prefixes = ['+20', '+966', '+971', '+974', '+973']
     fake = random.choice(prefixes) + ''.join(str(random.randint(0, 9)) for _ in range(9))
     code = f"YADASH-{int(time.time()):X}"
-    text = (f"✅ <b>تم التفعيل</b>\n📱 الرقم: <code>{number}</code>\n"
-            f"🔗 الجسر: <code>{fake}</code>\n🔑 الكود: <code>{code}</code>")
+    text = f"✅ <b>تم التفعيل</b>\n📱 الرقم: <code>{number}</code>\n🔗 الجسر: <code>{fake}</code>\n🔑 <code>{code}</code>"
     bot.edit_message_text(text, chat_id, msg.message_id, parse_mode='HTML')
     bot.send_message(chat_id, "اختر من القائمة 👇", reply_markup=main_menu(chat_id))
 
@@ -690,8 +790,7 @@ def process_band(message):
     msg = bot.send_message(chat_id, "⏳ <b>جاري التلغيم...</b>", parse_mode='HTML')
     time.sleep(1)
     weapon_id = "WP-" + ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=8))
-    text = (f"💣 <b>تم التلغيم</b>\n🎯 الباند: <code>{band}</code>\n"
-            f"💣 السلاح: <code>{weapon_id}</code>")
+    text = f"💣 <b>تم التلغيم</b>\n🎯 <code>{band}</code>\n💣 <code>{weapon_id}</code>"
     bot.edit_message_text(text, chat_id, msg.message_id, parse_mode='HTML')
     bot.send_message(chat_id, "اختر من القائمة 👇", reply_markup=main_menu(chat_id))
 
@@ -707,8 +806,7 @@ def process_nid(message):
         parts = [p.strip() for p in text.split('|', 1)]
         full_name = parts[0]
         id_num = parts[1]
-    id_num = id_num.strip()
-    result = analyze_national_id(id_num, full_name)
+    result = analyze_national_id(id_num.strip(), full_name)
     bot.send_message(chat_id, result, parse_mode='HTML', reply_markup=main_menu(chat_id))
 
 
@@ -733,9 +831,7 @@ def process_add_points(message):
         return
     try:
         parts = message.text.split()
-        uid = int(parts[0])
-        amt = int(parts[1])
-        add_points(uid, amt)
+        add_points(int(parts[0]), int(parts[1]))
         bot.send_message(message.chat.id, "✅ تم", reply_markup=admin_menu())
     except:
         bot.send_message(message.chat.id, "❌ خطأ", reply_markup=admin_menu())
@@ -746,9 +842,7 @@ def process_remove_points(message):
         return
     try:
         parts = message.text.split()
-        uid = int(parts[0])
-        amt = int(parts[1])
-        add_points(uid, -amt)
+        add_points(int(parts[0]), -int(parts[1]))
         bot.send_message(message.chat.id, "✅ تم", reply_markup=admin_menu())
     except:
         bot.send_message(message.chat.id, "❌ خطأ", reply_markup=admin_menu())
@@ -763,11 +857,9 @@ def admin_cmd(message):
 
 @bot.message_handler(commands=['myid'])
 def my_id_cmd(message):
-    uid = message.from_user.id
-    bot.reply_to(message, f"🆔 <code>{uid}</code>", parse_mode='HTML')
+    bot.reply_to(message, f"🆔 <code>{message.from_user.id}</code>", parse_mode='HTML')
 
 
-# ==================== RUN ====================
 if __name__ == "__main__":
     print(f"🔥 {BOT_NAME} — البوت شغّال...")
     while True:
