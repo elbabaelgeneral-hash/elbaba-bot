@@ -5,7 +5,6 @@ import sqlite3
 import random
 import time
 import threading
-from datetime import datetime
 from features import wifi_scan, format_wifi_scan, analyze_national_id
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -22,12 +21,12 @@ APPEAL_TEMPLATES = {
     "t2": {"title": "📝 شخصي", "text": "فريق واتساب،\n\nرقمي: [رقمك]\n\nحسابي محظور، وأنا شخص عادي أستخدم التطبيق للتواصل مع العائلة والأصدقاء. لم أرتكب مخالفة متعمدة.\n\nأطلب مراجعة حسابي.\n\nشكراً."},
     "t3": {"title": "📝 عمل", "text": "السادة فريق واتساب،\n\nرقمي: [رقمك]\n\nأنا صاحب عمل صغير وأستخدم واتساب للتواصل مع عملائي. الحظر يؤثر على رزقي.\n\nأرجو إعادة تفعيل حسابي.\n\nشكراً."},
     "t4": {"title": "📝 حظر خاطئ", "text": "فريق واتساب،\n\nرقمي: [رقمك]\n\nحظر حسابي حدث بالخطأ أو ببلاغ كاذب. أنا مستخدم منتظم منذ سنوات.\n\nأرجو التحقق.\n\nشكراً."},
-    "t5": {"title": "📝 استئناف رسمي", "text": "قسم مراجعة الحسابات،\n\nرقم الهاتف: [رقمك]\nتاريخ الحظر: [التاريخ]\n\nأرجو إعادة النظر في قرار حظر حسابي. أستخدم واتساب لأغراض شخصية مشروعة.\n\nشكراً."},
-    "t6": {"title": "📝 مستخدم جديد", "text": "فريق واتساب،\n\nرقمي: [رقمك]\n\nحسابي محظور بعد فترة قصيرة من إنشائه. ربما بسبب نشاط تلقائي.\n\nأرجو إعادة التفعيل.\n\nشكراً."},
+    "t5": {"title": "📝 رسمي", "text": "قسم مراجعة الحسابات،\n\nرقم الهاتف: [رقمك]\nتاريخ الحظر: [التاريخ]\n\nأرجو إعادة النظر في قرار حظر حسابي.\n\nشكراً."},
+    "t6": {"title": "📝 جديد", "text": "فريق واتساب،\n\nرقمي: [رقمك]\n\nحسابي محظور بعد فترة قصيرة. ربما بسبب نشاط تلقائي.\n\nأرجو إعادة التفعيل.\n\nشكراً."},
     "t7": {"title": "📝 English", "text": "Dear WhatsApp Support,\n\nMy number: [your number]\n\nMy account has been banned. I use WhatsApp only for personal communication. I have not intentionally violated any policy.\n\nPlease review my account.\n\nThank you."},
     "t8": {"title": "📝 تاجر", "text": "فريق دعم واتساب،\n\nرقمي: [رقمك]\n\nأنا صاحب متجر وأستخدم واتساب للعمل. الحظر سبب خسائر كبيرة.\n\nأرجو إعادة التفعيل.\n\nشكراً."},
     "t9": {"title": "📝 طالب", "text": "فريق واتساب،\n\nرقمي: [رقمك]\n\nأنا طالب وأستخدم واتساب للدراسة. الحظر أثر على دراستي.\n\nأرجو المراجعة.\n\nشكراً."},
-    "t10": {"title": "📝 مفصل", "text": "فريق واتساب المحترم،\n\nأتقدم باستئناف بخصوص حظر حسابي.\n\n📱 الرقم: [رقمك]\n📅 تاريخ الحظر: [التاريخ]\n\nأنا مستخدم واتساب منذ سنوات. أستخدمه شخصياً فقط. لم أخالف أي سياسة.\n\n🙏 أرجو إعادة النظر وإعادة التفعيل.\n\nمع خالص التحية."}
+    "t10": {"title": "📝 مفصل", "text": "فريق واتساب المحترم،\n\nأتقدم باستئناف بخصوص حظر حسابي.\n\n📱 الرقم: [رقمك]\n📅 التاريخ: [التاريخ]\n\nأنا مستخدم واتساب منذ سنوات. لم أخالف أي سياسة.\n\n🙏 أرجو إعادة النظر.\n\nمع التحية."}
 }
 
 
@@ -75,6 +74,19 @@ def get_user(user_id):
     with db_lock:
         conn = get_db(); c = conn.cursor()
         c.execute("SELECT user_id, username, first_name, points, referred_by, joined_at, last_gift FROM users WHERE user_id=?", (user_id,))
+        row = c.fetchone(); conn.close()
+    return row
+
+
+def find_user(query):
+    """يدور على مستخدم بـ ID أو @username"""
+    query = query.strip().replace('@', '')
+    with db_lock:
+        conn = get_db(); c = conn.cursor()
+        if query.isdigit():
+            c.execute("SELECT user_id, username, first_name, points FROM users WHERE user_id=?", (int(query),))
+        else:
+            c.execute("SELECT user_id, username, first_name, points FROM users WHERE LOWER(username)=LOWER(?)", (query,))
         row = c.fetchone(); conn.close()
     return row
 
@@ -310,6 +322,16 @@ def prices_admin_menu():
     return markup
 
 
+def points_confirm_menu(user_id, amount, action):
+    """قائمة تأكيد إضافة/خصم النقاط"""
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton("✅ تأكيد", callback_data=f"points_confirm_{user_id}_{amount}_{action}"),
+        types.InlineKeyboardButton("❌ إلغاء", callback_data="admin_panel"),
+    )
+    return markup
+
+
 def send_welcome(user_id, first_name=None):
     points = get_points(user_id)
     name_part = f"أهلاً {first_name}!" if first_name else "أهلاً!"
@@ -325,7 +347,6 @@ def send_welcome(user_id, first_name=None):
 
 
 def check_and_charge(user_id, button_key):
-    """يتحقق من السعر ويخصم. يرجع True لو تمام"""
     price = get_button_price(button_key)
     if price <= 0: return True
     points = get_points(user_id)
@@ -357,6 +378,30 @@ def callback_handler(call):
             bot.send_message(chat_id, "❌ <b>لسه مشتركتش!</b>", parse_mode='HTML', reply_markup=subscribe_menu(not_subscribed))
         return
 
+    # ============ تأكيد النقاط ============
+    if data.startswith("points_confirm_"):
+        bot.answer_callback_query(call.id)
+        parts = data.replace("points_confirm_", "").split("_")
+        target_id = int(parts[0])
+        amount = int(parts[1])
+        action = parts[2]
+
+        if action == "add":
+            add_points(target_id, amount)
+            bot.edit_message_text(f"✅ <b>تمت الإضافة!</b>\n\n💰 +{amount} نقطة لـ <code>{target_id}</code>\n⭐ رصيده الآن: <b>{get_points(target_id)}</b>",
+                                  chat_id, call.message.message_id, parse_mode='HTML', reply_markup=admin_menu())
+            try:
+                bot.send_message(target_id, f"🎉 <b>مبروك!</b>\n\n💰 تم إضافة <b>{amount} نقطة</b> لرصيدك\n⭐ رصيدك الآن: <b>{get_points(target_id)}</b>", parse_mode='HTML')
+            except: pass
+        else:
+            add_points(target_id, -amount)
+            bot.edit_message_text(f"✅ <b>تمت الخصم!</b>\n\n💸 -{amount} نقطة من <code>{target_id}</code>\n⭐ رصيده الآن: <b>{get_points(target_id)}</b>",
+                                  chat_id, call.message.message_id, parse_mode='HTML', reply_markup=admin_menu())
+            try:
+                bot.send_message(target_id, f"⚠️ <b>تم خصم نقاط</b>\n\n💸 -{amount} نقطة\n⭐ رصيدك الآن: <b>{get_points(target_id)}</b>", parse_mode='HTML')
+            except: pass
+        return
+
     # ============ ميزات مجانية ============
     if data == "daily_gift":
         bot.answer_callback_query(call.id)
@@ -377,7 +422,7 @@ def callback_handler(call):
             conn = get_db(); c = conn.cursor()
             c.execute("UPDATE users SET last_gift=? WHERE user_id=?", (now, user_id))
             conn.commit(); conn.close()
-        bot.send_message(chat_id, "🎁 <b>مبروك!</b>\n\n💰 +5 نقاط\n\nارجع بكرة للهدية التالية ✅", parse_mode='HTML', reply_markup=back_menu())
+        bot.send_message(chat_id, "🎁 <b>مبروك!</b>\n\n💰 +5 نقاط\n\nارجع بكرة ✅", parse_mode='HTML', reply_markup=back_menu())
         return
 
     if data == "leaderboard":
@@ -462,7 +507,7 @@ def callback_handler(call):
             return
         prize = random.choice([0, 10, 20, 30, 50, 100, 200])
         add_points(user_id, prize)
-        bot.send_message(chat_id, f"💎 <b>صندوق الغموض</b>\n\n🎁 جوّه الصندوق: <b>{prize} نقطة</b>\n💰 رصيدك: <b>{get_points(user_id)}</b>", parse_mode='HTML', reply_markup=back_menu())
+        bot.send_message(chat_id, f"💎 <b>صندوق الغموض</b>\n\n🎁 جوّه: <b>{prize} نقطة</b>\n💰 رصيدك: <b>{get_points(user_id)}</b>", parse_mode='HTML', reply_markup=back_menu())
         return
 
     if data == "paid_double":
@@ -475,7 +520,7 @@ def callback_handler(call):
             add_points(user_id, current)
             bot.send_message(chat_id, f"🎯 <b>مبروك!</b>\n\n💰 اتضاعفت نقاطك!\n⭐ رصيدك: <b>{get_points(user_id)}</b>", parse_mode='HTML', reply_markup=back_menu())
         else:
-            bot.send_message(chat_id, f"😢 <b>خسرت التحدي</b>\n\n💰 رصيدك: <b>{current}</b>", parse_mode='HTML', reply_markup=back_menu())
+            bot.send_message(chat_id, f"😢 <b>خسرت</b>\n\n💰 رصيدك: <b>{current}</b>", parse_mode='HTML', reply_markup=back_menu())
         return
 
     # ============ ميزات عادية ============
@@ -515,7 +560,7 @@ def callback_handler(call):
         for key, tpl in APPEAL_TEMPLATES.items():
             markup.add(types.InlineKeyboardButton(tpl["title"], callback_data=f"show_{key}"))
         markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
-        bot.send_message(chat_id, "📝 <b>قوالب استئناف جاهزة</b>\n\nاختار القالب:", parse_mode='HTML', reply_markup=markup)
+        bot.send_message(chat_id, "📝 <b>قوالب استئناف جاهزة</b>\n\nاختار:", parse_mode='HTML', reply_markup=markup)
         return
 
     if data.startswith("show_") and data.replace("show_", "") in APPEAL_TEMPLATES:
@@ -523,7 +568,7 @@ def callback_handler(call):
         key = data.replace("show_", "")
         tpl = APPEAL_TEMPLATES[key]
         text = (f"<b>{tpl['title']}</b>\n━━━━━━━━━━━━━━━━━━\n\n<blockquote>{tpl['text']}</blockquote>\n\n"
-                "📌 انسخها بالضغط المطول، وغير [رقمك]، وابعت من نموذج واتساب الرسمي.")
+                "📌 انسخها بالضغط المطول، وغير [رقمك].")
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("🌐 نموذج واتساب", url="https://www.whatsapp.com/contact/"))
         markup.add(types.InlineKeyboardButton("📋 قوالب تانية", callback_data="appeal_templates"))
@@ -545,7 +590,7 @@ def callback_handler(call):
         if not check_and_charge(user_id, "bridge"):
             bot.send_message(chat_id, "❌ <b>نقاطك مش كفاية!</b>", parse_mode='HTML', reply_markup=back_menu())
             return
-        msg = bot.send_message(chat_id, "🛡 أدخل الباند المرفوض:", parse_mode='HTML', reply_markup=back_menu())
+        msg = bot.send_message(chat_id, "🛡 أدخل الباند:", parse_mode='HTML', reply_markup=back_menu())
         bot.register_next_step_handler(msg, process_band)
         return
 
@@ -579,16 +624,36 @@ def callback_handler(call):
         bot.register_next_step_handler(msg, process_broadcast)
         return
 
+    # ============ إضافة نقاط جديدة ============
     if data == "admin_add_points":
         bot.answer_callback_query(call.id)
-        msg = bot.send_message(chat_id, "💰 اكتب: <code>USER_ID AMOUNT</code>", parse_mode='HTML')
-        bot.register_next_step_handler(msg, lambda m: process_points(m, 1))
+        msg = bot.send_message(chat_id,
+            "💰 <b>إضافة نقاط لمستخدم</b>\n━━━━━━━━━━━━━━━━━━\n\n"
+            "ابعت <b>ID</b> أو <b>@username</b> بتاع المستخدم:\n\n"
+            "مثال:\n"
+            "<code>8772508181</code>\n"
+            "أو\n"
+            "<code>@elgeneral</code>",
+            parse_mode='HTML',
+            reply_markup=types.InlineKeyboardMarkup().add(
+                types.InlineKeyboardButton("❌ إلغاء", callback_data="admin_panel")))
+        bot.register_next_step_handler(msg, process_add_points_step1)
         return
 
+    # ============ خصم نقاط جديدة ============
     if data == "admin_remove_points":
         bot.answer_callback_query(call.id)
-        msg = bot.send_message(chat_id, "➖ اكتب: <code>USER_ID AMOUNT</code>", parse_mode='HTML')
-        bot.register_next_step_handler(msg, lambda m: process_points(m, -1))
+        msg = bot.send_message(chat_id,
+            "➖ <b>خصم نقاط من مستخدم</b>\n━━━━━━━━━━━━━━━━━━\n\n"
+            "ابعت <b>ID</b> أو <b>@username</b> بتاع المستخدم:\n\n"
+            "مثال:\n"
+            "<code>8772508181</code>\n"
+            "أو\n"
+            "<code>@elgeneral</code>",
+            parse_mode='HTML',
+            reply_markup=types.InlineKeyboardMarkup().add(
+                types.InlineKeyboardButton("❌ إلغاء", callback_data="admin_panel")))
+        bot.register_next_step_handler(msg, process_remove_points_step1)
         return
 
     if data == "admin_users":
@@ -607,27 +672,17 @@ def callback_handler(call):
         bot.answer_callback_query(call.id)
         bot.send_message(chat_id,
             "🎛️ <b>أسعار الأزرار</b>\n━━━━━━━━━━━━━━━━━━\n\n"
-            "كل زر له سعر بالنقاط. لو 0 = مجاني.\n\n"
-            "اضغط على زر لحذفه من القائمة.",
+            "كل زر له سعر بالنقاط. لو 0 = مجاني.",
             parse_mode='HTML', reply_markup=prices_admin_menu())
         return
 
     if data == "btn_price_add":
         bot.answer_callback_query(call.id)
         text = ("🎛️ <b>ضبط سعر زر</b>\n\n"
-                "اكتب بالشكل ده:\n"
-                "<code>button_key | label | price</code>\n\n"
-                "<b>الأزرار المتاحة:</b>\n"
-                "• activate — تفعيل الاتصال\n"
-                "• bridge — جسر التلغيم\n"
-                "• wifi_scan — ماسح الواي فاي\n"
-                "• nid_analyze — محلل الرقم\n"
-                "• unban_help — مساعد فك الحظر\n"
-                "• appeal_templates — قوالب استئناف\n"
-                "• paid_lucky — عجلة الحظ\n"
-                "• paid_dice — لعبة النرد\n"
-                "• paid_box — صندوق الغموض\n"
-                "• paid_double — مضاعفة النقاط\n\n"
+                "اكتب: <code>button_key | label | price</code>\n\n"
+                "<b>الأزرار:</b>\n"
+                "activate, bridge, wifi_scan, nid_analyze, unban_help, appeal_templates\n"
+                "paid_lucky, paid_dice, paid_box, paid_double\n\n"
                 "<b>مثال:</b>\n"
                 "<code>paid_lucky | 🎰 عجلة الحظ | 5</code>")
         msg = bot.send_message(chat_id, text, parse_mode='HTML')
@@ -665,8 +720,8 @@ def callback_handler(call):
         bot.answer_callback_query(call.id)
         ftype = data.replace("force_type_", "")
         texts = {
-            "channel": "📢 ابعت @username أو اعمل Forward لأي رسالة من القناة.\n⚠️ البوت لازم أدمن.",
-            "group": "👥 ابعت @username أو اعمل Forward لأي رسالة من الجروب.\n⚠️ البوت لازم أدمن.",
+            "channel": "📢 ابعت @username أو Forward لأي رسالة من القناة.\n⚠️ البوت لازم أدمن.",
+            "group": "👥 ابعت @username أو Forward لأي رسالة من الجروب.\n⚠️ البوت لازم أدمن.",
             "bot": "🤖 ابعت رابط البوت:\nhttps://t.me/bot_username",
             "link": "🔗 ابعت اللينك:\nhttps://example.com",
         }
@@ -678,6 +733,90 @@ def callback_handler(call):
 
 
 # ==================== PROCESSES ====================
+def process_add_points_step1(message):
+    """الخطوة 1: اختيار المستخدم"""
+    if message.from_user.id != OWNER_ID: return
+    if not message.text: return
+    query = message.text.strip()
+    user_data = find_user(query)
+    if not user_data:
+        bot.send_message(message.chat.id, f"❌ <b>مش لاقي المستخدم:</b> <code>{query}</code>\n\nاتأكد من الـ ID أو اليوزرنيم.", parse_mode='HTML', reply_markup=admin_menu())
+        return
+    target_id, uname, fname, points = user_data
+    display = fname or (f"@{uname}" if uname else str(target_id))
+    msg = bot.send_message(message.chat.id,
+        f"👤 <b>المستخدم:</b> {display}\n"
+        f"🆔 <code>{target_id}</code>\n"
+        f"⭐ رصيده الحالي: <b>{points}</b>\n\n"
+        f"💰 <b>اكتب عدد النقاط اللي عايز تضيفها:</b>",
+        parse_mode='HTML',
+        reply_markup=types.InlineKeyboardMarkup().add(
+            types.InlineKeyboardButton("❌ إلغاء", callback_data="admin_panel")))
+    bot.register_next_step_handler(msg, lambda m: process_add_points_step2(m, target_id, display))
+
+
+def process_add_points_step2(message, target_id, display):
+    """الخطوة 2: تحديد المبلغ + تأكيد"""
+    if message.from_user.id != OWNER_ID: return
+    try:
+        amount = int(message.text.strip())
+        if amount <= 0: raise ValueError()
+        bot.send_message(message.chat.id,
+            f"💰 <b>تأكيد الإضافة</b>\n━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 المستخدم: <b>{display}</b>\n"
+            f"🆔 <code>{target_id}</code>\n"
+            f"➕ المبلغ: <b>{amount} نقطة</b>\n"
+            f"⭐ رصيده بعد الإضافة: <b>{get_points(target_id) + amount}</b>\n\n"
+            f"تأكد؟",
+            parse_mode='HTML',
+            reply_markup=points_confirm_menu(target_id, amount, "add"))
+    except:
+        bot.send_message(message.chat.id, "❌ رقم غير صالح", reply_markup=admin_menu())
+
+
+def process_remove_points_step1(message):
+    """الخطوة 1: اختيار المستخدم للخصم"""
+    if message.from_user.id != OWNER_ID: return
+    if not message.text: return
+    query = message.text.strip()
+    user_data = find_user(query)
+    if not user_data:
+        bot.send_message(message.chat.id, f"❌ <b>مش لاقي:</b> <code>{query}</code>", parse_mode='HTML', reply_markup=admin_menu())
+        return
+    target_id, uname, fname, points = user_data
+    display = fname or (f"@{uname}" if uname else str(target_id))
+    msg = bot.send_message(message.chat.id,
+        f"👤 <b>المستخدم:</b> {display}\n"
+        f"🆔 <code>{target_id}</code>\n"
+        f"⭐ رصيده الحالي: <b>{points}</b>\n\n"
+        f"➖ <b>اكتب عدد النقاط اللي عايز تخصمها:</b>",
+        parse_mode='HTML',
+        reply_markup=types.InlineKeyboardMarkup().add(
+            types.InlineKeyboardButton("❌ إلغاء", callback_data="admin_panel")))
+    bot.register_next_step_handler(msg, lambda m: process_remove_points_step2(m, target_id, display, points))
+
+
+def process_remove_points_step2(message, target_id, display, current_points):
+    """الخطوة 2: تحديد المبلغ + تأكيد"""
+    if message.from_user.id != OWNER_ID: return
+    try:
+        amount = int(message.text.strip())
+        if amount <= 0: raise ValueError()
+        if amount > current_points:
+            amount = current_points
+        bot.send_message(message.chat.id,
+            f"➖ <b>تأكيد الخصم</b>\n━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 المستخدم: <b>{display}</b>\n"
+            f"🆔 <code>{target_id}</code>\n"
+            f"➖ المبلغ: <b>{amount} نقطة</b>\n"
+            f"⭐ رصيده بعد الخصم: <b>{current_points - amount}</b>\n\n"
+            f"تأكد؟",
+            parse_mode='HTML',
+            reply_markup=points_confirm_menu(target_id, amount, "remove"))
+    except:
+        bot.send_message(message.chat.id, "❌ رقم غير صالح", reply_markup=admin_menu())
+
+
 def process_ref_price(message):
     if message.from_user.id != OWNER_ID: return
     try:
@@ -697,7 +836,7 @@ def process_btn_price(message):
         set_button_price(key, label, int(price))
         bot.send_message(message.chat.id, f"✅ <b>تم!</b>\n\n{label} = {price} نقطة", parse_mode='HTML', reply_markup=prices_admin_menu())
     except:
-        bot.send_message(message.chat.id, "❌ صيغة غلط. اكتب: key | label | price", reply_markup=prices_admin_menu())
+        bot.send_message(message.chat.id, "❌ صيغة غلط", reply_markup=prices_admin_menu())
 
 
 def process_add_force(message, ftype):
@@ -788,16 +927,6 @@ def process_broadcast(message):
     bot.send_message(message.chat.id, f"✅ نجح: {sent}", reply_markup=admin_menu())
 
 
-def process_points(message, sign):
-    if message.from_user.id != OWNER_ID: return
-    try:
-        parts = message.text.split()
-        add_points(int(parts[0]), sign * int(parts[1]))
-        bot.send_message(message.chat.id, "✅ تم", reply_markup=admin_menu())
-    except:
-        bot.send_message(message.chat.id, "❌ خطأ", reply_markup=admin_menu())
-
-
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
     user_id = message.from_user.id
@@ -819,7 +948,7 @@ def start_cmd(message):
         except: pass
     ok, not_subscribed = check_subscription(user_id)
     if not ok:
-        bot.send_message(user_id, "⚠️ <b>لازم تشترك في القنوات دي الأول:</b>", parse_mode='HTML', reply_markup=subscribe_menu(not_subscribed))
+        bot.send_message(user_id, "⚠️ <b>لازم تشترك في القنوات دي:</b>", parse_mode='HTML', reply_markup=subscribe_menu(not_subscribed))
         return
     if not is_bot_on() and user_id != OWNER_ID:
         bot.send_message(user_id, "🔴 <b>البوت متوقف</b>", parse_mode='HTML'); return
