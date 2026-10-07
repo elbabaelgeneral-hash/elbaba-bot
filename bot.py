@@ -8,7 +8,7 @@ import threading
 from features import wifi_scan, format_wifi_scan, analyze_national_id
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-OWNER_ID = 8985043877
+OWNER_ID = 7540856297
 DEV_USERNAME = "@ELBABAELGRNERAL"
 BOT_NAME = "ELGENERAL"
 
